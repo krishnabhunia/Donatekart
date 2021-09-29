@@ -13,21 +13,32 @@ namespace Donatekart.Controllers
     public class DonatekartController : ApiController
     {
         private const string strAPI = "https://testapi.donatekart.com/api/campaign";
-        private readonly HttpClient httpClient = new HttpClient();
-        private List<Campaign> campaigns;
+        private const string strStatus = "Campaign is not assigned";
+        private readonly static HttpClient httpClient = new HttpClient();
+        private readonly static List<Campaign> campaigns = FetchAsyncD().Result;
 
-        [HttpGet]
-        public async Task<HttpResponseMessage> GetTotalSort()
+        private async static Task<List<Campaign>> FetchAsyncD()
         {
             try
             {
-                if(campaigns == null)
-                {
-                    var stringResponse = httpClient.GetStringAsync(strAPI);
-                    var msg = await stringResponse;
-                    campaigns = JsonConvert.DeserializeObject<List<Campaign>>(msg);
+                string stringResponse = await httpClient.GetStringAsync(strAPI).ConfigureAwait(false);
+                var res = JsonConvert.DeserializeObject<List<Campaign>>(stringResponse);
+                return res;
+            }
+            catch (Exception)
+            {
+                throw;
+            }
+        }
 
-                    var resToSend = campaigns.OrderByDescending(x=> x.totalAmount).Select(x => new { x.title,x.totalAmount,x.backersCount, x.endDate });
+        [HttpGet]
+        public HttpResponseMessage GetTotalSort()
+        {
+            try
+            {
+                if (campaigns != null)
+                {
+                    var resToSend = campaigns.OrderByDescending(x => x.totalAmount).Select(x => new { x.title, x.totalAmount, x.backersCount, x.endDate });
                     return Request.CreateResponse(HttpStatusCode.OK, resToSend);
                 }
             }
@@ -35,20 +46,16 @@ namespace Donatekart.Controllers
             {
                 throw ex;
             }
-            return Request.CreateResponse(HttpStatusCode.OK, campaigns);
+            return Request.CreateResponse(HttpStatusCode.InternalServerError, strStatus);
         }
 
         [HttpGet]
-        public async Task<HttpResponseMessage> GetActiveCamp()
+        public HttpResponseMessage GetActiveCamp()
         {
             try
             {
-                if (campaigns == null)
+                if (campaigns != null)
                 {
-                    var stringResponse = httpClient.GetStringAsync(strAPI);
-                    var msg = await stringResponse;
-                    campaigns = JsonConvert.DeserializeObject<List<Campaign>>(msg);
-
                     var resToSend = campaigns
                         .Where(x => x.endDate >= DateTime.Today & x.endDate <= DateTime.Today.AddDays(30));
                     return Request.CreateResponse(HttpStatusCode.OK, resToSend);
@@ -58,20 +65,16 @@ namespace Donatekart.Controllers
             {
                 throw ex;
             }
-            return Request.CreateResponse(HttpStatusCode.OK, campaigns);
+            return Request.CreateResponse(HttpStatusCode.InternalServerError, strStatus);
         }
 
         [HttpGet]
-        public async Task<HttpResponseMessage> GetCloseCamp()
+        public HttpResponseMessage GetCloseCamp()
         {
             try
             {
-                if (campaigns == null)
+                if (campaigns != null)
                 {
-                    var stringResponse = httpClient.GetStringAsync(strAPI);
-                    var msg = await stringResponse;
-                    campaigns = JsonConvert.DeserializeObject<List<Campaign>>(msg);
-
                     var resToSend = campaigns
                         .Where(x => x.endDate < DateTime.Today || x.procuredAmount >= x.totalAmount);
                     return Request.CreateResponse(HttpStatusCode.OK, resToSend);
@@ -81,7 +84,7 @@ namespace Donatekart.Controllers
             {
                 throw ex;
             }
-            return Request.CreateResponse(HttpStatusCode.OK, campaigns);
+            return Request.CreateResponse(HttpStatusCode.InternalServerError, strStatus);
         }
     }
 }
